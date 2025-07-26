@@ -1,0 +1,31 @@
+{
+  "name": "starmap-app",
+  "version": "1.0.0",
+  "description": "An interactive web application to visualize the night sky based on user location and star brightness.",
+  "main": "src/js/app.js",
+  "scripts": {
+    "start": "live-server src",
+    "build": "echo 'Build step not defined'",
+    "test": "echo 'No tests defined'"
+  },
+  "keywords": [
+    "starmap",
+    "astronomy",
+    "geolocation",
+    "interactive"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "live-server": "^1.2.1"
+  },
+  "devDependencies": {},
+  "homepage": "https://github.com/yourusername/starmap-app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/starmap-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/starmap-app/issues"
+  }
+}
