@@ -20,7 +20,7 @@ const STARS = [
     constellation: "Carina",
     distance: 310,
     spectralClass: "A9II",
-    age: 0.025,
+    age: 0.028,
     mass: 8.5,
     description:
       "The second brightest star in the night sky, visible mainly from southern latitudes.",
@@ -32,7 +32,7 @@ const STARS = [
     magnitude: -0.05,
     constellation: "Boötes",
     distance: 37,
-    spectralClass: "K0III",
+    spectralClass: "K1.5IIIFe-0.5",
     age: 7.1,
     mass: 1.08,
     description:

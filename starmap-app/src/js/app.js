@@ -5,26 +5,20 @@ class StarMapApp {
     this.starMap = new StarMap("starmap", STARS);
     this.setupEventListeners();
     this.updateAllDisplays();
+    this.setupDualSliders();
   }
 
   setupEventListeners() {
-    // Filter sliders
-    document
-      .getElementById("magnitude-slider")
-      .addEventListener("input", () => {
+    // Dual range sliders
+    ["magnitude", "distance", "age", "mass"].forEach((type) => {
+      document.getElementById(`${type}-min`).addEventListener("input", () => {
+        this.handleDualSliderChange(type);
         this.updateFilters();
       });
-
-    document.getElementById("distance-slider").addEventListener("input", () => {
-      this.updateFilters();
-    });
-
-    document.getElementById("age-slider").addEventListener("input", () => {
-      this.updateFilters();
-    });
-
-    document.getElementById("mass-slider").addEventListener("input", () => {
-      this.updateFilters();
+      document.getElementById(`${type}-max`).addEventListener("input", () => {
+        this.handleDualSliderChange(type);
+        this.updateFilters();
+      });
     });
 
     // Reset filters button
@@ -51,25 +45,101 @@ class StarMapApp {
     });
   }
 
+  setupDualSliders() {
+    // Initialize dual slider functionality
+    ["magnitude", "distance", "age", "mass"].forEach((type) => {
+      this.updateSliderBackground(type);
+    });
+  }
+
+  handleDualSliderChange(type) {
+    const minSlider = document.getElementById(`${type}-min`);
+    const maxSlider = document.getElementById(`${type}-max`);
+
+    let minVal = parseFloat(minSlider.value);
+    let maxVal = parseFloat(maxSlider.value);
+
+    // Ensure min is always less than or equal to max
+    if (minVal > maxVal) {
+      if (event.target === minSlider) {
+        maxSlider.value = minVal;
+        maxVal = minVal;
+      } else {
+        minSlider.value = maxVal;
+        minVal = maxVal;
+      }
+    }
+
+    this.updateSliderBackground(type);
+    this.updateSliderDisplays(type);
+  }
+
+  updateSliderBackground(type) {
+    const minSlider = document.getElementById(`${type}-min`);
+    const maxSlider = document.getElementById(`${type}-max`);
+    const container = minSlider.parentElement;
+
+    const min = parseFloat(minSlider.min);
+    const max = parseFloat(minSlider.max);
+    const minVal = parseFloat(minSlider.value);
+    const maxVal = parseFloat(maxSlider.value);
+
+    const minPercent = ((minVal - min) / (max - min)) * 100;
+    const maxPercent = ((maxVal - min) / (max - min)) * 100;
+
+    // Update CSS custom properties
+    container.style.setProperty("--range-left", `${minPercent}%`);
+    container.style.setProperty("--range-width", `${maxPercent - minPercent}%`);
+  }
+
+  updateSliderDisplays(type) {
+    const minVal = parseFloat(document.getElementById(`${type}-min`).value);
+    const maxVal = parseFloat(document.getElementById(`${type}-max`).value);
+
+    let minDisplay, maxDisplay;
+
+    switch (type) {
+      case "magnitude":
+        minDisplay = minVal.toFixed(1);
+        maxDisplay = maxVal.toFixed(1);
+        break;
+      case "distance":
+        minDisplay = Math.round(minVal);
+        maxDisplay = Math.round(maxVal);
+        break;
+      case "age":
+        minDisplay = minVal.toFixed(1);
+        maxDisplay = maxVal.toFixed(1);
+        break;
+      case "mass":
+        minDisplay = minVal.toFixed(1);
+        maxDisplay = maxVal.toFixed(1);
+        break;
+    }
+
+    document.getElementById(`${type}-min-value`).textContent = minDisplay;
+    document.getElementById(`${type}-max-value`).textContent = maxDisplay;
+  }
+
   updateFilters() {
     const magnitudeRange = {
-      min: -2.0,
-      max: parseFloat(document.getElementById("magnitude-slider").value),
+      min: parseFloat(document.getElementById("magnitude-min").value),
+      max: parseFloat(document.getElementById("magnitude-max").value),
     };
 
     const distanceRange = {
-      min: 0,
-      max: parseFloat(document.getElementById("distance-slider").value),
+      min: parseFloat(document.getElementById("distance-min").value),
+      max: parseFloat(document.getElementById("distance-max").value),
     };
 
     const ageRange = {
-      min: 0,
-      max: parseFloat(document.getElementById("age-slider").value),
+      min: parseFloat(document.getElementById("age-min").value),
+      max: parseFloat(document.getElementById("age-max").value),
     };
 
     const massRange = {
-      min: 0.1,
-      max: parseFloat(document.getElementById("mass-slider").value),
+      min: parseFloat(document.getElementById("mass-min").value),
+      max: parseFloat(document.getElementById("mass-max").value),
     };
 
     this.starMap.setRangeFilters(
@@ -78,30 +148,27 @@ class StarMapApp {
       ageRange,
       massRange
     );
-    this.updateAllDisplays();
   }
 
   updateAllDisplays() {
-    const magnitude = document.getElementById("magnitude-slider").value;
-    const distance = document.getElementById("distance-slider").value;
-    const age = document.getElementById("age-slider").value;
-    const mass = document.getElementById("mass-slider").value;
-
-    document.getElementById("magnitude-value").textContent =
-      parseFloat(magnitude).toFixed(1);
-    document.getElementById("distance-value").textContent =
-      parseFloat(distance).toFixed(0);
-    document.getElementById("age-value").textContent =
-      parseFloat(age).toFixed(1);
-    document.getElementById("mass-value").textContent =
-      parseFloat(mass).toFixed(1);
+    ["magnitude", "distance", "age", "mass"].forEach((type) => {
+      this.updateSliderDisplays(type);
+      this.updateSliderBackground(type);
+    });
   }
 
   resetFilters() {
-    document.getElementById("magnitude-slider").value = 4.0;
-    document.getElementById("distance-slider").value = 1000;
-    document.getElementById("age-slider").value = 10.0;
-    document.getElementById("mass-slider").value = 25.0;
+    // Reset to default values
+    document.getElementById("magnitude-min").value = -2;
+    document.getElementById("magnitude-max").value = 4;
+    document.getElementById("distance-min").value = 1;
+    document.getElementById("distance-max").value = 1000;
+    document.getElementById("age-min").value = 0;
+    document.getElementById("age-max").value = 10;
+    document.getElementById("mass-min").value = 0.1;
+    document.getElementById("mass-max").value = 25;
+
+    this.updateAllDisplays();
     this.updateFilters();
   }
 
