@@ -4,26 +4,32 @@ class StarMapApp {
     this.geolocation = new GeolocationService();
     this.starMap = new StarMap("starmap", STARS);
     this.setupEventListeners();
-    this.updateMagnitudeDisplay();
-
-    // Test magnitude filtering on startup
-    setTimeout(() => {
-      console.log("Testing magnitude filtering...");
-      this.starMap.setMagnitudeLimit(1.0); // Show only brightest stars
-      setTimeout(() => {
-        this.starMap.setMagnitudeLimit(4.0); // Back to default
-      }, 2000);
-    }, 1000);
+    this.updateAllDisplays();
   }
 
   setupEventListeners() {
-    // Magnitude slider
-    const slider = document.getElementById("magnitude-slider");
-    slider.addEventListener("input", (e) => {
-      const value = parseFloat(e.target.value);
-      console.log("Slider changed to:", value);
-      this.starMap.setMagnitudeLimit(value);
-      this.updateMagnitudeDisplay();
+    // Filter sliders
+    document
+      .getElementById("magnitude-slider")
+      .addEventListener("input", () => {
+        this.updateFilters();
+      });
+
+    document.getElementById("distance-slider").addEventListener("input", () => {
+      this.updateFilters();
+    });
+
+    document.getElementById("age-slider").addEventListener("input", () => {
+      this.updateFilters();
+    });
+
+    document.getElementById("mass-slider").addEventListener("input", () => {
+      this.updateFilters();
+    });
+
+    // Reset filters button
+    document.getElementById("reset-filters").addEventListener("click", () => {
+      this.resetFilters();
     });
 
     // Geolocation button
@@ -31,15 +37,78 @@ class StarMapApp {
       this.getLocation();
     });
 
-    // Star selection
+    // Star selection and filtering events
     document.addEventListener("starSelected", (e) => {
       this.showStarInfo(e.detail);
     });
 
-    // Close star info
+    document.addEventListener("starsFiltered", (e) => {
+      this.updateVisibleCount(e.detail.count, e.detail.total);
+    });
+
     document.getElementById("close-info").addEventListener("click", () => {
       this.hideStarInfo();
     });
+  }
+
+  updateFilters() {
+    const magnitudeRange = {
+      min: -2.0,
+      max: parseFloat(document.getElementById("magnitude-slider").value),
+    };
+
+    const distanceRange = {
+      min: 0,
+      max: parseFloat(document.getElementById("distance-slider").value),
+    };
+
+    const ageRange = {
+      min: 0,
+      max: parseFloat(document.getElementById("age-slider").value),
+    };
+
+    const massRange = {
+      min: 0.1,
+      max: parseFloat(document.getElementById("mass-slider").value),
+    };
+
+    this.starMap.setRangeFilters(
+      magnitudeRange,
+      distanceRange,
+      ageRange,
+      massRange
+    );
+    this.updateAllDisplays();
+  }
+
+  updateAllDisplays() {
+    const magnitude = document.getElementById("magnitude-slider").value;
+    const distance = document.getElementById("distance-slider").value;
+    const age = document.getElementById("age-slider").value;
+    const mass = document.getElementById("mass-slider").value;
+
+    document.getElementById("magnitude-value").textContent =
+      parseFloat(magnitude).toFixed(1);
+    document.getElementById("distance-value").textContent =
+      parseFloat(distance).toFixed(0);
+    document.getElementById("age-value").textContent =
+      parseFloat(age).toFixed(1);
+    document.getElementById("mass-value").textContent =
+      parseFloat(mass).toFixed(1);
+  }
+
+  resetFilters() {
+    document.getElementById("magnitude-slider").value = 4.0;
+    document.getElementById("distance-slider").value = 1000;
+    document.getElementById("age-slider").value = 10.0;
+    document.getElementById("mass-slider").value = 25.0;
+    this.updateFilters();
+  }
+
+  updateVisibleCount(visible, total) {
+    document.getElementById(
+      "visible-count"
+    ).textContent = `Showing ${visible} of ${total} stars`;
   }
 
   async getLocation() {
@@ -70,12 +139,6 @@ class StarMapApp {
     }
   }
 
-  updateMagnitudeDisplay() {
-    const slider = document.getElementById("magnitude-slider");
-    const display = document.getElementById("magnitude-value");
-    display.textContent = parseFloat(slider.value).toFixed(1);
-  }
-
   showStarInfo(star) {
     const infoPanel = document.getElementById("star-info");
     const name = document.getElementById("star-name");
@@ -85,7 +148,9 @@ class StarMapApp {
     details.innerHTML = `
       <strong>Constellation:</strong> ${star.constellation}<br>
       <strong>Magnitude:</strong> ${star.magnitude}<br>
-      <strong>Distance:</strong> ${star.distance}<br>
+      <strong>Distance:</strong> ${star.distance} light years<br>
+      <strong>Age:</strong> ${star.age} billion years<br>
+      <strong>Mass:</strong> ${star.mass} solar masses<br>
       <strong>Spectral Class:</strong> ${star.spectralClass}<br>
       <strong>Description:</strong> ${star.description}
     `;
@@ -100,7 +165,6 @@ class StarMapApp {
   }
 }
 
-// Initialize the app when the page loads
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM loaded, starting app");
   new StarMapApp();
