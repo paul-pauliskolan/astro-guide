@@ -365,3 +365,148 @@ main {
     justify-content: center;
   }
 }
+
+/* Lägg till i slutet av styles.css: */
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid #4a90e2;
+  border-radius: 15px;
+  padding: 0;
+  box-shadow: 0 0 30px rgba(74, 144, 226, 0.5);
+  z-index: 1000;
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+.close-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #666;
+  color: white;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-button:hover {
+  background: #777;
+  transform: scale(1.1);
+}
+
+.modal-content {
+  padding: 30px;
+  color: #fff;
+  line-height: 1.6;
+}
+
+.modal-content h2 {
+  color: #4a90e2;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+.modal-content h3 {
+  color: #e29d4a;
+  margin: 25px 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.modal-content p {
+  margin-bottom: 15px;
+  color: #ccc;
+}
+
+.modal-content a {
+  color: #4a90e2;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.modal-content a:hover {
+  color: #357abd;
+  text-decoration: underline;
+}
+
+/* Contact Form Styles */
+.contact-form {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-control,
+.contact-textarea {
+  padding: 12px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+
+.form-control:focus,
+.contact-textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+}
+
+.form-control::placeholder,
+.contact-textarea::placeholder {
+  color: #aaa;
+}
+
+.contact-textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+.contact-button {
+  padding: 12px 24px;
+  background: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.contact-button:hover {
+  background: #357abd;
+  transform: translateY(-2px);
+}
+
+#open-modal {
+  background: #e29d4a;
+}
+
+#open-modal:hover {
+  background: #bd7a35;
+}

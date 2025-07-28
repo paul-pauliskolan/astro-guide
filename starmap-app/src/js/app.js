@@ -31,6 +31,29 @@ class StarMapApp {
       this.getLocation();
     });
 
+    // Modal buttons
+    document.getElementById("open-modal").addEventListener("click", () => {
+      this.openModal();
+    });
+
+    document.getElementById("close-modal").addEventListener("click", () => {
+      this.closeModal();
+    });
+
+    // Close modal on backdrop click
+    document.getElementById("modal").addEventListener("click", (e) => {
+      if (e.target === document.getElementById("modal")) {
+        this.closeModal();
+      }
+    });
+
+    // Close modal on Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        this.closeModal();
+      }
+    });
+
     // Star selection and filtering events
     document.addEventListener("starSelected", (e) => {
       this.showStarInfo(e.detail);
@@ -176,6 +199,19 @@ class StarMapApp {
     document.getElementById(
       "visible-count"
     ).textContent = `Showing ${visible} of ${total} stars`;
+  }
+
+  // Modal functions
+  openModal() {
+    console.log("Opening modal");
+    const modal = document.getElementById("modal");
+    modal.showModal();
+  }
+
+  closeModal() {
+    console.log("Closing modal");
+    const modal = document.getElementById("modal");
+    modal.close();
   }
 
   async getLocation() {
