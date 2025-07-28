@@ -20,6 +20,14 @@ class StarMap {
     this.horizonRadius =
       Math.min(this.canvas.width, this.canvas.height) / 2 - 30;
 
+    // ZOOM PROPERTIES - NYTT
+    this.zoomLevel = 1;
+    this.minZoom = 0.5;
+    this.maxZoom = 3;
+    this.panX = 0;
+    this.panY = 0;
+    this.lastTouchDistance = 0;
+
     this.setupEventListeners();
     this.render();
   }
@@ -52,83 +60,60 @@ class StarMap {
     );
   }
 
-  // Convert celestial coordinates to realistic azimuth/elevation projection
+  // UPPDATERAD MED ZOOM
   celestialToCanvas(ra, dec) {
-    // Get current time for proper star positions
     const now = new Date();
     const lst = this.getLocalSiderealTime(now);
-
-    // Convert RA/Dec to Alt/Az coordinates based on observer location and time
     const coords = this.equatorialToHorizontal(ra, dec, lst, this.latitude);
-
-    // Store altitude for alpha calculation
     const altitude = coords.altitude;
-
-    // Convert to canvas coordinates regardless of altitude (for below-horizon rendering)
-    // Azimuth: 0° = North, 90° = East, 180° = South, 270° = West
     const azimuthRad = (coords.azimuth * Math.PI) / 180;
 
-    // Project altitude to radius (90° = center, 0° = horizon, negative = below horizon)
     let radius;
     if (altitude >= 0) {
-      radius = this.horizonRadius * (1 - altitude / 90);
+      radius = this.horizonRadius * (1 - altitude / 90) * this.zoomLevel;
     } else {
-      // For stars below horizon, extend beyond the horizon circle
-      radius = this.horizonRadius * (1 - altitude / 90);
+      radius = this.horizonRadius * (1 - altitude / 90) * this.zoomLevel;
     }
 
-    // Azimuth to angle (rotate so North is up)
-    const angle = azimuthRad - Math.PI / 2; // Rotate 90° so North is up
-
-    const x = this.centerX + radius * Math.cos(angle);
-    const y = this.centerY + radius * Math.sin(angle);
+    const angle = azimuthRad - Math.PI / 2;
+    const x = this.centerX + radius * Math.cos(angle) + this.panX;
+    const y = this.centerY + radius * Math.sin(angle) + this.panY;
 
     return { x, y, altitude };
   }
 
-  // Calculate Local Sidereal Time
   getLocalSiderealTime(date) {
     const J2000 = new Date("2000-01-01T12:00:00Z");
     const daysSinceJ2000 =
       (date.getTime() - J2000.getTime()) / (1000 * 60 * 60 * 24);
 
-    // Greenwich Sidereal Time at 0h UT
     const GST0 = (280.46061837 + 360.98564736629 * daysSinceJ2000) % 360;
-
-    // Current Greenwich Sidereal Time
     const hours =
       date.getUTCHours() +
       date.getUTCMinutes() / 60 +
       date.getUTCSeconds() / 3600;
     const GST = (GST0 + 15.04107 * hours) % 360;
-
-    // Local Sidereal Time
     const LST = (GST + this.longitude) % 360;
 
     return LST;
   }
 
-  // Convert Equatorial coordinates (RA/Dec) to Horizontal coordinates (Alt/Az)
   equatorialToHorizontal(ra, dec, lst, latitude) {
-    // Hour Angle
     const hourAngle = (lst - ra + 360) % 360;
     const H = (hourAngle * Math.PI) / 180;
     const decRad = (dec * Math.PI) / 180;
     const latRad = (latitude * Math.PI) / 180;
 
-    // Calculate altitude
     const sinAlt =
       Math.sin(decRad) * Math.sin(latRad) +
       Math.cos(decRad) * Math.cos(latRad) * Math.cos(H);
     const altitude = (Math.asin(sinAlt) * 180) / Math.PI;
 
-    // Calculate azimuth
     const cosAz =
       (Math.sin(decRad) - Math.sin(latRad) * sinAlt) /
       (Math.cos(latRad) * Math.cos(Math.asin(sinAlt)));
     let azimuth = (Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180) / Math.PI;
 
-    // Adjust azimuth based on hour angle
     if (Math.sin(H) >= 0) {
       azimuth = 360 - azimuth;
     }
@@ -137,49 +122,28 @@ class StarMap {
   }
 
   getStarSize(magnitude) {
-    // More dramatic size differences
     return Math.max(1, 10 - magnitude * 3);
   }
 
   render() {
-    console.log("Rendering with filters:", {
-      magnitude: this.magnitudeRange,
-      distance: this.distanceRange,
-      age: this.ageRange,
-      mass: this.massRange,
-    });
-
-    // Clear canvas with dark sky gradient
     this.drawSkyBackground();
-
-    // Draw horizon circle and compass
     this.drawHorizonAndCompass();
-
-    // Add background stars
     this.drawBackground();
 
-    // Filter stars by all criteria
     const visibleStars = this.getVisibleStars();
 
-    console.log(`Showing ${visibleStars.length} stars with current filters`);
-
-    // Draw each visible star
     visibleStars.forEach((star) => {
       const pos = this.celestialToCanvas(star.ra, star.dec);
-
-      // Only draw stars within reasonable distance from center
       const distFromCenter = Math.sqrt(
         Math.pow(pos.x - this.centerX, 2) + Math.pow(pos.y - this.centerY, 2)
       );
 
       if (distFromCenter <= this.horizonRadius * 1.5 && pos.x > -500) {
-        // Calculate alpha based on altitude
         const alpha = pos.altitude < 0 ? 0.3 : 1.0;
         this.drawStar(star, pos.x, pos.y, alpha);
       }
     });
 
-    // Highlight selected star
     if (this.selectedStar) {
       const pos = this.celestialToCanvas(
         this.selectedStar.ra,
@@ -190,7 +154,9 @@ class StarMap {
       }
     }
 
-    // Update visible count
+    // UPPDATERA ZOOM INFO
+    this.updateZoomInfo();
+
     const event = new CustomEvent("starsFiltered", {
       detail: { count: visibleStars.length, total: this.stars.length },
     });
@@ -198,110 +164,118 @@ class StarMap {
   }
 
   drawSkyBackground() {
-    // Create radial gradient from center (zenith) to edge (horizon)
     const gradient = this.ctx.createRadialGradient(
       this.centerX,
       this.centerY,
       0,
       this.centerX,
       this.centerY,
-      this.horizonRadius
+      this.horizonRadius * this.zoomLevel
     );
-    gradient.addColorStop(0, "#001133"); // Dark blue at zenith
-    gradient.addColorStop(0.7, "#000822"); // Darker towards horizon
-    gradient.addColorStop(1, "#000511"); // Very dark at horizon
+    gradient.addColorStop(0, "#001133");
+    gradient.addColorStop(0.7, "#000822");
+    gradient.addColorStop(1, "#000511");
 
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   drawHorizonAndCompass() {
-    // Draw horizon circle
     this.ctx.strokeStyle = "#444444";
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
     this.ctx.arc(
-      this.centerX,
-      this.centerY,
-      this.horizonRadius,
+      this.centerX + this.panX,
+      this.centerY + this.panY,
+      this.horizonRadius * this.zoomLevel,
       0,
       2 * Math.PI
     );
     this.ctx.stroke();
 
-    // Draw compass directions
     this.ctx.fillStyle = "#cccccc";
     this.ctx.font = "16px Arial";
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
-    const compassOffset = 20;
+    const compassOffset = 20 * this.zoomLevel;
 
-    // North (top)
     this.ctx.fillText(
       "N",
-      this.centerX,
-      this.centerY - this.horizonRadius - compassOffset
+      this.centerX + this.panX,
+      this.centerY +
+        this.panY -
+        this.horizonRadius * this.zoomLevel -
+        compassOffset
     );
-
-    // South (bottom)
     this.ctx.fillText(
       "S",
-      this.centerX,
-      this.centerY + this.horizonRadius + compassOffset
+      this.centerX + this.panX,
+      this.centerY +
+        this.panY +
+        this.horizonRadius * this.zoomLevel +
+        compassOffset
     );
-
-    // East (right)
     this.ctx.fillText(
       "E",
-      this.centerX + this.horizonRadius + compassOffset,
-      this.centerY
+      this.centerX +
+        this.panX +
+        this.horizonRadius * this.zoomLevel +
+        compassOffset,
+      this.centerY + this.panY
     );
-
-    // West (left)
     this.ctx.fillText(
       "W",
-      this.centerX - this.horizonRadius - compassOffset,
-      this.centerY
+      this.centerX +
+        this.panX -
+        this.horizonRadius * this.zoomLevel -
+        compassOffset,
+      this.centerY + this.panY
     );
 
-    // Draw cardinal direction lines
     this.ctx.strokeStyle = "#666666";
     this.ctx.lineWidth = 1;
 
-    // North-South line
     this.ctx.beginPath();
-    this.ctx.moveTo(this.centerX, this.centerY - this.horizonRadius);
-    this.ctx.lineTo(this.centerX, this.centerY + this.horizonRadius);
+    this.ctx.moveTo(
+      this.centerX + this.panX,
+      this.centerY + this.panY - this.horizonRadius * this.zoomLevel
+    );
+    this.ctx.lineTo(
+      this.centerX + this.panX,
+      this.centerY + this.panY + this.horizonRadius * this.zoomLevel
+    );
     this.ctx.stroke();
 
-    // East-West line
     this.ctx.beginPath();
-    this.ctx.moveTo(this.centerX - this.horizonRadius, this.centerY);
-    this.ctx.lineTo(this.centerX + this.horizonRadius, this.centerY);
+    this.ctx.moveTo(
+      this.centerX + this.panX - this.horizonRadius * this.zoomLevel,
+      this.centerY + this.panY
+    );
+    this.ctx.lineTo(
+      this.centerX + this.panX + this.horizonRadius * this.zoomLevel,
+      this.centerY + this.panY
+    );
     this.ctx.stroke();
 
-    // Draw elevation circles (30°, 60°)
     this.ctx.strokeStyle = "#333333";
     this.ctx.lineWidth = 1;
 
-    // 60° elevation (30° from zenith)
     this.ctx.beginPath();
     this.ctx.arc(
-      this.centerX,
-      this.centerY,
-      this.horizonRadius * 0.33,
+      this.centerX + this.panX,
+      this.centerY + this.panY,
+      this.horizonRadius * this.zoomLevel * 0.33,
       0,
       2 * Math.PI
     );
     this.ctx.stroke();
 
-    // 30° elevation (60° from zenith)
     this.ctx.beginPath();
     this.ctx.arc(
-      this.centerX,
-      this.centerY,
-      this.horizonRadius * 0.67,
+      this.centerX + this.panX,
+      this.centerY + this.panY,
+      this.horizonRadius * this.zoomLevel * 0.67,
       0,
       2 * Math.PI
     );
@@ -309,13 +283,12 @@ class StarMap {
   }
 
   drawBackground() {
-    // Add random background stars within horizon circle
     this.ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
     for (let i = 0; i < 200; i++) {
       const angle = Math.random() * 2 * Math.PI;
-      const radius = Math.random() * this.horizonRadius;
-      const x = this.centerX + radius * Math.cos(angle);
-      const y = this.centerY + radius * Math.sin(angle);
+      const radius = Math.random() * this.horizonRadius * this.zoomLevel;
+      const x = this.centerX + this.panX + radius * Math.cos(angle);
+      const y = this.centerY + this.panY + radius * Math.sin(angle);
       const size = Math.random() * 0.5 + 0.2;
 
       this.ctx.beginPath();
@@ -325,24 +298,20 @@ class StarMap {
   }
 
   drawStar(star, x, y, alpha = 1.0) {
-    const size = this.getStarSize(star.magnitude);
+    const size = this.getStarSize(star.magnitude) * this.zoomLevel;
 
-    // Star color based on spectral class
     let color = "#ffffff";
-    if (star.spectralClass.startsWith("M")) color = "#ffaa77"; // Red
-    else if (star.spectralClass.startsWith("K")) color = "#ffcc88"; // Orange
-    else if (star.spectralClass.startsWith("G")) color = "#ffff88"; // Yellow
-    else if (star.spectralClass.startsWith("F")) color = "#ffffff"; // White
-    else if (star.spectralClass.startsWith("A"))
-      color = "#aaccff"; // Blue-white
-    else if (star.spectralClass.startsWith("B")) color = "#88aaff"; // Blue
+    if (star.spectralClass.startsWith("M")) color = "#ffaa77";
+    else if (star.spectralClass.startsWith("K")) color = "#ffcc88";
+    else if (star.spectralClass.startsWith("G")) color = "#ffff88";
+    else if (star.spectralClass.startsWith("F")) color = "#ffffff";
+    else if (star.spectralClass.startsWith("A")) color = "#aaccff";
+    else if (star.spectralClass.startsWith("B")) color = "#88aaff";
 
-    // Apply alpha for stars below horizon
     const alphaHex = Math.round(alpha * 255)
       .toString(16)
       .padStart(2, "0");
 
-    // Draw star glow effect
     const glowSize = size * 2;
     const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, glowSize);
     gradient.addColorStop(0, color + alphaHex);
@@ -360,142 +329,277 @@ class StarMap {
     this.ctx.arc(x, y, glowSize, 0, 2 * Math.PI);
     this.ctx.fill();
 
-    // Draw bright star core
     this.ctx.fillStyle = color + alphaHex;
     this.ctx.beginPath();
     this.ctx.arc(x, y, size, 0, 2 * Math.PI);
     this.ctx.fill();
 
-    // Draw star name with appropriate alpha
-    this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-    this.ctx.font = "10px Arial";
+    // Förbättrad text-rendering
+    this.ctx.save();
+
+    const fontSize = (window.innerWidth <= 768 ? 12 : 10) * this.zoomLevel;
+    this.ctx.font = `${fontSize}px Arial`;
     this.ctx.textAlign = "left";
     this.ctx.textBaseline = "middle";
-    this.ctx.fillText(star.name, x + size + 5, y);
 
-    // Store position for click detection
+    this.ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+    this.ctx.shadowBlur = 3;
+    this.ctx.shadowOffsetX = 1;
+    this.ctx.shadowOffsetY = 1;
+
+    if (star.magnitude <= 2.5 || this.selectedStar === star) {
+      this.ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(alpha * 0.9, 0.9)})`;
+      this.ctx.fillText(star.name, x + size + 6, y);
+    }
+
+    this.ctx.restore();
+
     star.canvasX = x;
     star.canvasY = y;
-    star.radius = glowSize;
+    star.radius = Math.max(glowSize, 12);
   }
 
   drawSelectionRing(x, y) {
     this.ctx.strokeStyle = "#ffd700";
     this.ctx.lineWidth = 3;
     this.ctx.beginPath();
-    this.ctx.arc(x, y, 25, 0, 2 * Math.PI);
+    this.ctx.arc(x, y, 25 * this.zoomLevel, 0, 2 * Math.PI);
     this.ctx.stroke();
 
-    // Add pulsing effect
     this.ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    this.ctx.arc(x, y, 35, 0, 2 * Math.PI);
+    this.ctx.arc(x, y, 35 * this.zoomLevel, 0, 2 * Math.PI);
     this.ctx.stroke();
   }
 
+  // UPPDATERAD MED ZOOM OCH TOUCH EVENTS
+  // Ersätt setupEventListeners metoden med denna:
+
   setupEventListeners() {
-    // Desktop click event - BEFINTLIG KOD
-    this.canvas.addEventListener("click", (e) => {
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Desktop click & drag
+    this.canvas.addEventListener("mousedown", (e) => {
       const rect = this.canvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
 
-      // Allow clicks within a larger area to include below-horizon stars
-      const distFromCenter = Math.sqrt(
-        Math.pow(clickX - this.centerX, 2) + Math.pow(clickY - this.centerY, 2)
-      );
-
-      if (distFromCenter > this.horizonRadius * 1.5) return;
-
-      // Find clicked star from currently visible stars
-      const visibleStars = this.getVisibleStars();
-
-      for (let star of visibleStars) {
-        if (star.canvasX && star.canvasY) {
-          const distance = Math.sqrt(
-            Math.pow(clickX - star.canvasX, 2) +
-              Math.pow(clickY - star.canvasY, 2)
-          );
-
-          if (distance <= star.radius) {
-            this.selectStar(star);
-            break;
-          }
-        }
+      // Check if clicking on a star first
+      if (!this.handleStarSelection(clickX, clickY)) {
+        // No star clicked, start dragging
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        this.canvas.style.cursor = "grabbing";
       }
     });
 
-    // TOUCH EVENT FÖR MOBIL - NY KOD
-    this.canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault(); // Förhindra scrolling
-
-      const rect = this.canvas.getBoundingClientRect();
-      const touch = e.touches[0];
-      const touchX = touch.clientX - rect.left;
-      const touchY = touch.clientY - rect.top;
-
-      // Samma logik som click event
-      const distFromCenter = Math.sqrt(
-        Math.pow(touchX - this.centerX, 2) + Math.pow(touchY - this.centerY, 2)
-      );
-
-      if (distFromCenter > this.horizonRadius * 1.5) return;
-
-      const visibleStars = this.getVisibleStars();
-
-      for (let star of visibleStars) {
-        if (star.canvasX && star.canvasY) {
-          const distance = Math.sqrt(
-            Math.pow(touchX - star.canvasX, 2) +
-              Math.pow(touchY - star.canvasY, 2)
-          );
-
-          // Lite större hit-area på mobil
-          const hitRadius = star.radius + 5;
-
-          if (distance <= hitRadius) {
-            this.selectStar(star);
-            break;
-          }
-        }
-      }
-    });
-
-    // Mouse hover event - BEFINTLIG KOD
     this.canvas.addEventListener("mousemove", (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      if (isDragging) {
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
 
-      let overStar = false;
-      const visibleStars = this.getVisibleStars();
+        this.panX += deltaX;
+        this.panY += deltaY;
 
-      for (let star of visibleStars) {
-        if (star.canvasX && star.canvasY) {
-          const distance = Math.sqrt(
-            Math.pow(mouseX - star.canvasX, 2) +
-              Math.pow(mouseY - star.canvasY, 2)
-          );
+        lastX = e.clientX;
+        lastY = e.clientY;
 
-          if (distance <= star.radius) {
-            overStar = true;
-            break;
+        this.render();
+      } else if (window.innerWidth > 768) {
+        // Mouse hover för desktop
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        let overStar = false;
+        const visibleStars = this.getVisibleStars();
+
+        for (let star of visibleStars) {
+          if (star.canvasX && star.canvasY) {
+            const distance = Math.sqrt(
+              Math.pow(mouseX - star.canvasX, 2) +
+                Math.pow(mouseY - star.canvasY, 2)
+            );
+
+            if (distance <= star.radius) {
+              overStar = true;
+              break;
+            }
           }
         }
+
+        this.canvas.style.cursor = overStar ? "pointer" : "grab";
+      }
+    });
+
+    this.canvas.addEventListener("mouseup", () => {
+      isDragging = false;
+      this.canvas.style.cursor = "grab";
+    });
+
+    this.canvas.addEventListener("mouseleave", () => {
+      isDragging = false;
+      this.canvas.style.cursor = "grab";
+    });
+
+    // Touch events för mobil
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let isPanningTouch = false;
+
+    this.canvas.addEventListener("touchstart", (e) => {
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+
+      if (e.touches.length === 1) {
+        // Single touch - kan vara star selection eller pan start
+        e.preventDefault();
+      } else if (e.touches.length === 2) {
+        // Pinch zoom
+        this.lastTouchDistance = this.getTouchDistance(e.touches);
+        e.preventDefault();
+      }
+    });
+
+    this.canvas.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 1) {
+        // Single touch pan
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+
+        // Om användaren har rört sig mer än 10px, börja panning
+        if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+          isPanningTouch = true;
+
+          this.panX += deltaX;
+          this.panY += deltaY;
+
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+
+          this.render();
+        }
+        e.preventDefault();
+      } else if (e.touches.length === 2) {
+        // Pinch zoom
+        const currentDistance = this.getTouchDistance(e.touches);
+        const zoomFactor = currentDistance / this.lastTouchDistance;
+
+        this.zoomLevel *= zoomFactor;
+        this.zoomLevel = Math.max(
+          this.minZoom,
+          Math.min(this.maxZoom, this.zoomLevel)
+        );
+
+        this.lastTouchDistance = currentDistance;
+        this.render();
+        e.preventDefault();
+      }
+    });
+
+    this.canvas.addEventListener("touchend", (e) => {
+      e.preventDefault();
+
+      // Om det var en kort touch utan panning, försök välja stjärna
+      if (!isPanningTouch && Date.now() - touchStartTime < 200) {
+        const rect = this.canvas.getBoundingClientRect();
+        const touchX = touchStartX - rect.left;
+        const touchY = touchStartY - rect.top;
+        this.handleStarSelection(touchX, touchY);
       }
 
-      this.canvas.style.cursor = overStar ? "pointer" : "crosshair";
+      isPanningTouch = false;
+    });
+
+    // Mouse wheel zoom
+    this.canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      this.zoomLevel *= zoomFactor;
+      this.zoomLevel = Math.max(
+        this.minZoom,
+        Math.min(this.maxZoom, this.zoomLevel)
+      );
+      this.render();
     });
   }
 
+  // Ersätt handleStarSelection metoden:
+
+  handleStarSelection(x, y) {
+    const distFromCenter = Math.sqrt(
+      Math.pow(x - this.centerX, 2) + Math.pow(y - this.centerY, 2)
+    );
+
+    if (distFromCenter > this.horizonRadius * this.zoomLevel * 1.5)
+      return false;
+
+    const visibleStars = this.getVisibleStars();
+
+    for (let star of visibleStars) {
+      if (star.canvasX && star.canvasY) {
+        const distance = Math.sqrt(
+          Math.pow(x - star.canvasX, 2) + Math.pow(y - star.canvasY, 2)
+        );
+
+        const hitRadius =
+          window.innerWidth <= 768 ? star.radius + 8 : star.radius;
+
+        if (distance <= hitRadius) {
+          this.selectStar(star);
+          return true; // Stjärna vald
+        }
+      }
+    }
+
+    return false; // Ingen stjärna vald
+  }
+
   selectStar(star) {
-    console.log("Selected star:", star.name);
     this.selectedStar = star;
     this.render();
 
-    // Trigger star info display
     const event = new CustomEvent("starSelected", { detail: star });
     document.dispatchEvent(event);
+  }
+
+  // NYA ZOOM METODER
+  getTouchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  zoomIn() {
+    this.zoomLevel = Math.min(this.maxZoom, this.zoomLevel * 1.2);
+    this.render();
+  }
+
+  zoomOut() {
+    this.zoomLevel = Math.max(this.minZoom, this.zoomLevel / 1.2);
+    this.render();
+  }
+
+  resetZoom() {
+    this.zoomLevel = 1;
+    this.panX = 0;
+    this.panY = 0;
+    this.render();
+  }
+
+  updateZoomInfo() {
+    const zoomElement = document.getElementById("zoom-info");
+    if (zoomElement) {
+      const zoomPercent = Math.round(this.zoomLevel * 100);
+      zoomElement.textContent = `Zoom: ${zoomPercent}%`;
+    }
   }
 }

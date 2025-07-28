@@ -12,9 +12,9 @@
         gtag('config', 'G-JN4FV1G82G');
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Star Map Filter</title>
-    <link rel="icon" type="image/x-icon" href="img/star_map_favicon.ico">
+    <link rel="icon" type="image/x-icon" href="star_map_favicon.ico">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
@@ -23,12 +23,22 @@
         <header>
             <div class="header-title">
                 <h1>Star Map Filter</h1>
-                <p>by Paul Belfrage</p>
+                <p>by Paul Belfrage v0.5</p>
             </div>
         </header>
 
         <main>
             <canvas id="starmap" width="900" height="900"></canvas>
+
+            <!-- ZOOM CONTROLS - NYTT -->
+            <div class="zoom-controls">
+                <button class="zoom-button" id="zoom-in">+</button>
+                <button class="zoom-button" id="zoom-out">−</button>
+                <button class="zoom-button" id="zoom-reset">⌂</button>
+            </div>
+
+            <div class="zoom-info" id="zoom-info">Zoom: 100%</div>
+
             <div id="star-info" class="hidden">
                 <h3 id="star-name">Star Name</h3>
                 <p id="star-details"></p>
