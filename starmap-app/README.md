@@ -2,7 +2,7 @@
 
 An interactive web-based star map that allows users to explore and filter stars based on various astronomical properties. Users can visualize stars in real-time, apply filters, and get detailed information about individual stars.
 
-![Star Map Filter Screenshot](screenshot.png)
+![Star Map Filter Webpage](https://starmapfilter.netlify.app/)
 
 ## Features
 
