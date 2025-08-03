@@ -8,7 +8,7 @@ const STARS = [
     distance: 8.6,
     spectralClass: "A1V",
     age: 0.242,
-    mass: 2.02,
+    mass: 2.06,
     description:
       "The brightest star in the night sky, also known as the Dog Star.",
   },
@@ -910,7 +910,7 @@ const STARS = [
     name: "Ginan",
     ra: 192.913,
     dec: -57.806,
-    magnitude: 4.03,
+    magnitude: 3.58,
     constellation: "Crux",
     distance: 88,
     spectralClass: "F2III",
@@ -979,7 +979,7 @@ const STARS = [
     description: "The westernmost star of Orion's Belt.",
   },
   {
-    name: "Saph",
+    name: "Saiph",
     ra: 78.265,
     dec: -9.67,
     magnitude: 2.09,
